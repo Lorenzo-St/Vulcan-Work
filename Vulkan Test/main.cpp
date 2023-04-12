@@ -63,16 +63,7 @@ int main()
         return 1;
     }
 
-    // Normally, a program would do something with the instance here. This, however, is just a
-    // simple demo program, so we just finish up right away.
-    vk::DisplaySurfaceCreateInfoKHR surface = vk::DisplaySurfaceCreateInfoKHR()
-      .setFlags(vk::DisplaySurfaceCreateFlagsKHR())
-      .setAlphaMode(vk::DisplayPlaneAlphaFlagBitsKHR())
-      .setPlaneIndex(0)
-      .setTransform(vk::SurfaceTransformFlagBitsKHR())
-      .setImageExtent(vk::Extent2D());
 
-    instance.createDisplayPlaneSurfaceKHR(surface);
     instance.destroy();
 
     return 0;
