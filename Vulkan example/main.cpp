@@ -47,81 +47,51 @@ Create and destroy a Vulkan surface on an SDL window.
 #include "Vulkan Interface.h"
 
 
+VertexInfo Vertex::GetInfo()
+{
+  VertexInfo info;
+  VkVertexInputBindingDescription bindingDescriptions{};
+  bindingDescriptions.binding = 0;
+  bindingDescriptions.stride = sizeof(Vertex);
+  bindingDescriptions.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+  info.bindings.push_back(bindingDescriptions);
 
+  VkVertexInputAttributeDescription PositionDescription{};
+  PositionDescription.binding = 0;
+  PositionDescription.location = 0;
+  PositionDescription.format = VK_FORMAT_R32G32B32_SFLOAT;
+  PositionDescription.offset = offsetof(Vertex, pos);
 
-
-
-
-
-
-
-
-
+  VkVertexInputAttributeDescription ColorDescription{};
+  ColorDescription.binding = 0;
+  ColorDescription.location = 1;
+  ColorDescription.format = VK_FORMAT_R32G32B32A32_SFLOAT;
+  ColorDescription.offset = offsetof(Vertex, color);
+  info.attributes.push_back(PositionDescription);
+  info.attributes.push_back(ColorDescription);
+  return info;
+}
 
 int main()
 {
   VulkanInterface interface = VulkanInterface();
   interface.Initialize();
-  //VkDeviceSize offset = 0;
-  //vkCmdBindVertexBuffers(CommandBuffer, 0, 1, &vertexBuffer, &offset);
-  //vkCmdDraw(CommandBuffer, 4, 1, 1, 1);
-  //VkSubmitInfo  subInfo{};
-  //subInfo.commandBufferCount = 1;
-  //subInfo.pCommandBuffers = &CommandBuffer;
-  //subInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-  //subInfo.waitSemaphoreCount = 0;
-
-
-  //VkImageLayout newLayout = VK_IMAGE_LAYOUT_GENERAL;
-  //
-
-  //VkImageMemoryBarrier barrier{};
-  //barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-  //barrier.image = image;
-  //barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-  //barrier.newLayout = newLayout;
-  //barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-  //barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-  //barrier.srcAccessMask = 0;
-  //barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-  //barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-  //barrier.subresourceRange.baseMipLevel = 0;
-  //barrier.subresourceRange.levelCount = 1;
-  //barrier.subresourceRange.baseArrayLayer = 0;
-  //barrier.subresourceRange.layerCount = 1;
-
-  //VkPipelineStageFlags srcStage;
-  //VkPipelineStageFlags dstStage;
-  //srcStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-  //dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-
-  //vkCmdEndRenderPass(CommandBuffer);
-  //vkCmdPipelineBarrier(CommandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, {}, 0, nullptr, 0, nullptr, 1, & barrier);
-  //vkEndCommandBuffer(CommandBuffer);
-  //
-
-
-
-
-
-  //if (vkQueueSubmit(graphicsQueue0, 1, &subInfo, nullptr) != VK_SUCCESS)
-  //  throw std::runtime_error("Queue failed");
-  //
-  //VkPresentInfoKHR presInfo{};
-  //presInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-  //presInfo.swapchainCount = 0;
-  ////presInfo.pSwapchains = &swapChain;
-
-  //vkQueuePresentKHR(graphicsQueue0, &presInfo);
+  VkCommandBuffer c = interface.CreateCommandBuffer();
+  VkPipeline p = interface.CreateGraphicsPipeline();
 
   // Poll for user input
 
   bool stillRunning = true;
   while (stillRunning) {
 
-
+    interface.BeginRenderPass(c, p);
+    //vkCmdDraw(c, 3, 1, 0, 0);
+    interface.DrawRect({ 0, 0 }, { .5f, .5f }, { 1, 0, 0, 1}, c);
+    interface.DrawRect({ .25f, .5f }, { .5f, .5f }, { 1, 1, 1,1  }, c);
+    interface.EndRenderPass(c, p);
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
+
 
       switch (event.type) {
 
@@ -134,7 +104,6 @@ int main()
         break;
       }
     }
-
     SDL_Delay(10);
   }
 

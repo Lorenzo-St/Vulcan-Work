@@ -101,6 +101,9 @@ xcopy "$(ProjectDir)Shaders\\" "$(OutDir)Shaders\\" /v /q /y
 cd "$(ProjectDir)Shaders"
 compile.bat</Command>
     </PostBuildEvent>
+    <PreBuildEvent>
+      <Command>set VK_LAYER_PATH=C:\VulkanSDK\1.3.243.0\Bin</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -124,6 +127,9 @@ xcopy "$(ProjectDir)Shaders\\" "$(OutDir)Shaders\\" /v /q /y
 cd "$(ProjectDir)Shaders"
 compile.bat</Command>
     </PostBuildEvent>
+    <PreBuildEvent>
+      <Command>set VK_LAYER_PATH=C:\VulkanSDK\1.3.243.0\Bin</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -151,6 +157,9 @@ xcopy "$(ProjectDir)Shaders\\" "$(OutDir)Shaders\\" /v /q /y
 cd "$(ProjectDir)Shaders"
 compile.bat</Command>
     </PostBuildEvent>
+    <PreBuildEvent>
+      <Command>set VK_LAYER_PATH=C:\VulkanSDK\1.3.243.0\Bin</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -178,6 +187,9 @@ xcopy "$(ProjectDir)Shaders\\" "$(OutDir)Shaders\\" /v /q /y
 cd "$(ProjectDir)Shaders"
 compile.bat</Command>
     </PostBuildEvent>
+    <PreBuildEvent>
+      <Command>set VK_LAYER_PATH=C:\VulkanSDK\1.3.243.0\Bin</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
