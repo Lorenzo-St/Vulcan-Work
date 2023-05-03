@@ -14,11 +14,6 @@ struct VertexInfo
   std::vector<VkVertexInputAttributeDescription> attributes;
 
 };
-struct SwapChainSupportDetails {
-  VkSurfaceCapabilitiesKHR capabilities;
-  std::vector<VkSurfaceFormatKHR> formats;
-  std::vector<VkPresentModeKHR> presentModes;
-};
 struct Vertex
 {
   glm::vec3 pos;
@@ -38,12 +33,12 @@ struct Vertex
     static std::array<VkVertexInputAttributeDescription, 2> attributeDescriptions{};
     attributeDescriptions[0].binding = 0;
     attributeDescriptions[0].location = 0;
-    attributeDescriptions[0].format = VK_FORMAT_R32G32B32A32_SFLOAT;
+    attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
     attributeDescriptions[0].offset = offsetof(Vertex, pos);
 
     attributeDescriptions[1].binding = 0;
     attributeDescriptions[1].location = 1;
-    attributeDescriptions[1].format = VK_FORMAT_B8G8R8A8_SRGB;
+    attributeDescriptions[1].format = VK_FORMAT_R32G32B32A32_SFLOAT;
     attributeDescriptions[1].offset = offsetof(Vertex, color);
 
 

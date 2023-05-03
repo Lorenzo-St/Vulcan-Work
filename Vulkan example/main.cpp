@@ -87,7 +87,7 @@ int main()
     interface.BeginRenderPass(c, p);
     //vkCmdDraw(c, 3, 1, 0, 0);
     interface.DrawRect({ 0, 0 }, { .5f, .5f }, { 1, 0, 0, 1}, c);
-    interface.DrawRect({ .25f, .5f }, { .5f, .5f }, { 1, 1, 1,1  }, c);
+    interface.DrawRect({ .25f, .5f }, { .5f, .5f }, { 1, 1, 1, 1  }, c);
     interface.EndRenderPass(c, p);
     SDL_Event event;
     while (SDL_PollEvent(&event)) {

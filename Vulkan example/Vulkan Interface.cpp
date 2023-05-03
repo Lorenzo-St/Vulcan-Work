@@ -61,8 +61,8 @@ void VulkanInterface::Initialize(void)
   CreateDevice();
   CreateMemoryAllocator();
   CreateSwapChain();
-  CreateRenderPass();
   CreateImageView();
+  CreateRenderPass();
   CreateFrameBuffer();
 
   VkFenceCreateInfo fenceCreate{};
@@ -261,7 +261,7 @@ void VulkanInterface::CreateRenderPass(void)
   VkAttachmentReference Attachments[1] = { 
     {0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL },
   };
-  attachments[0].format = VK_FORMAT_UNDEFINED;
+  attachments[0].format = surfaceFormat.format;
   attachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
   attachments[0].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
   attachments[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
@@ -286,12 +286,12 @@ void VulkanInterface::CreateRenderPass(void)
   subDescription.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
   std::array<VkSubpassDependency, 1> dependencies{};
 
-  dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
+  dependencies[0].srcSubpass = 0;
   dependencies[0].dstSubpass = 0;
   dependencies[0].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
   dependencies[0].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
   dependencies[0].srcAccessMask = 0;
-  dependencies[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+  dependencies[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT;
   dependencies[0].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
 
   //dependencies[1].srcSubpass = 0;
@@ -308,7 +308,7 @@ void VulkanInterface::CreateRenderPass(void)
   renderPassCreate.pSubpasses = &subDescription;
   renderPassCreate.pAttachments = attachments;
   renderPassCreate.attachmentCount = 1;
-  renderPassCreate.dependencyCount = dependencies.size();
+  renderPassCreate.dependencyCount = static_cast<uint32_t>(dependencies.size());
   renderPassCreate.pDependencies = dependencies.data();
 
   vkCreateRenderPass(globalDevice, &renderPassCreate, nullptr, &currentRenderPass);
@@ -350,7 +350,7 @@ void VulkanInterface::CreateSwapChain(void)
   swapCreate.pQueueFamilyIndices = indicies.data();
   swapCreate.presentMode = VK_PRESENT_MODE_FIFO_KHR;
   swapCreate.clipped = VK_TRUE;
-  swapCreate.preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
+  swapCreate.preTransform = surfaceCapabilities.currentTransform;
   swapCreate.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
   vkCreateSwapchainKHR(globalDevice, &swapCreate, nullptr, &swapChain);
   
@@ -540,8 +540,11 @@ VkPipelineInputAssemblyStateCreateInfo VulkanInterface::CreateInputAssemblyState
 
 VkPipelineViewportStateCreateInfo VulkanInterface::CreateViewPortState(void)
 {
-  static VkViewport port{ 0,0, surfaceCapabilities.maxImageExtent.width, surfaceCapabilities.maxImageExtent.height, 0, 1 };
-  static VkRect2D scissor{ {0,0},surfaceCapabilities.maxImageExtent };
+  static VkViewport port{ 0,0, 
+    static_cast<float>(surfaceCapabilities.maxImageExtent.width), 
+    static_cast<float>(surfaceCapabilities.maxImageExtent.height), 0, 1};
+  static VkRect2D scissor{ {0,0},
+    surfaceCapabilities.maxImageExtent };
   VkPipelineViewportStateCreateInfo viewPortState{};
   viewPortState.viewportCount = 1;
   viewPortState.pViewports = &port;
@@ -584,7 +587,7 @@ VkPipelineMultisampleStateCreateInfo VulkanInterface::CreateMultiSampleInfo(void
 
 VkPipelineColorBlendStateCreateInfo VulkanInterface::CreateColorBlendState(void) 
 {
-  std::array<VkPipelineColorBlendAttachmentState,2> colorBlend{};
+  static std::array<VkPipelineColorBlendAttachmentState,2> colorBlend{};
   colorBlend[0].blendEnable = VK_FALSE;
   colorBlend[0].colorWriteMask = VK_COLOR_COMPONENT_R_BIT
     | VK_COLOR_COMPONENT_G_BIT 
@@ -617,7 +620,7 @@ VkDescriptorSetLayout VulkanInterface::CreateDescriptorSetLayout(void)
 
   VkDescriptorSetLayout setLayout;
   VkDescriptorSetLayoutCreateInfo SetCreate{};
-  SetCreate.bindingCount = layoutBindings.size();
+  SetCreate.bindingCount = static_cast<uint32_t>(layoutBindings.size());
   SetCreate.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
   SetCreate.pBindings = layoutBindings.data();
 
@@ -748,10 +751,9 @@ void VulkanInterface::BeginRenderPass(VkCommandBuffer buffer, VkPipeline pipelin
     {0,0},
     surfaceCapabilities.maxImageExtent
   };
-  float flash = abs(sin(_frame / 120.f));
 
   VkClearValue clear[2]{};
-  clear[0].color = { 0, 0.f, flash, 1 };
+  clear[0].color = { 0, 0.5, 0, 1 };
   clear[1].depthStencil = { 1, 0 };
   VkRenderPassBeginInfo beginInfo{};
 
@@ -765,7 +767,9 @@ void VulkanInterface::BeginRenderPass(VkCommandBuffer buffer, VkPipeline pipelin
 
   vkCmdBeginRenderPass(buffer, &beginInfo, VK_SUBPASS_CONTENTS_INLINE);
   VkRect2D scissor = { {0,0}, surfaceCapabilities.maxImageExtent };
-  VkViewport port = { 0,0,surfaceCapabilities.maxImageExtent.width,surfaceCapabilities.maxImageExtent.height, 0, 1 };
+  VkViewport port = { 0,0,
+    static_cast<float>(surfaceCapabilities.maxImageExtent.width),
+    static_cast<float>(surfaceCapabilities.maxImageExtent.height), 0, 1};
 
   vkCmdBindPipeline(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
   vkCmdSetScissor(buffer, 0, 1, &scissor);
@@ -810,19 +814,19 @@ void VulkanInterface::DrawRect(glm::vec2 pos, glm::vec2 size, glm::vec4 color, V
   bufferInfo buffer = CreateVertexBuffer(6);
   void* data = NULL;
   std::array<Vertex, 6> vertexs = {};
-  vertexs[0] = { {pos.x - size.x / 2.0f, pos.y - size.y / 2.0f, 1}, color };
-  vertexs[1] = { {pos.x - size.x / 2.0f, pos.y + size.y / 2.0f, 1}, color };
-  vertexs[2] = { {pos.x + size.x / 2.0f, pos.y + size.y / 2.0f, 1}, color };
-  vertexs[3] = { {pos.x + size.x / 2.0f, pos.y + size.y / 2.0f, 1}, color };
-  vertexs[4] = { {pos.x + size.x / 2.0f, pos.y - size.y / 2.0f, 1}, color };
-  vertexs[5] = { {pos.x - size.x / 2.0f, pos.y - size.y / 2.0f, 1}, color };
+  vertexs[0] = { {pos.x - size.x / 2.0f, pos.y - size.y / 2.0f, 0}, color };
+  vertexs[1] = { {pos.x - size.x / 2.0f, pos.y + size.y / 2.0f, 0}, color };
+  vertexs[2] = { {pos.x + size.x / 2.0f, pos.y + size.y / 2.0f, 0}, color };
+  vertexs[3] = { {pos.x + size.x / 2.0f, pos.y + size.y / 2.0f, 0}, color };
+  vertexs[4] = { {pos.x + size.x / 2.0f, pos.y - size.y / 2.0f, 0}, color };
+  vertexs[5] = { {pos.x - size.x / 2.0f, pos.y - size.y / 2.0f, 0}, color };
   vmaMapMemory(allocator, buffer.memory, &data);
   memcpy(data, vertexs.data(), sizeof(Vertex) * vertexs.size());
   VkBuffer buffers[2] = { buffer.buffer, 0 };
   VkDeviceSize ComBuffOffset = 0;
 
   vkCmdBindVertexBuffers(comBuffer, 0, 1, &buffer.buffer, &ComBuffOffset);
-  vkCmdDraw(comBuffer, vertexs.size(), 1, 0, 0);
+  vkCmdDraw(comBuffer, static_cast<uint32_t>( vertexs.size()), 1, 0, 0);
   vmaUnmapMemory(allocator, buffer.memory);
   //for (int i = 0; i < 6; ++i)
   //{
