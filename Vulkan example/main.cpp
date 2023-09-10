@@ -38,57 +38,126 @@ Create and destroy a Vulkan surface on an SDL window.
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_syswm.h>
 #include <SDL2/SDL_vulkan.h>
-#include <vulkan/vulkan.hpp>
-#include <iostream>
-#include <vector>
-#include <string>
-#include <fstream>
-#include "vk_mem_alloc.h"
 #include "Vulkan Interface.h"
+#include "MeshData.h"
 
 
-VertexInfo Vertex::GetInfo()
-{
-  VertexInfo info;
-  VkVertexInputBindingDescription bindingDescriptions{};
-  bindingDescriptions.binding = 0;
-  bindingDescriptions.stride = sizeof(Vertex);
-  bindingDescriptions.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-  info.bindings.push_back(bindingDescriptions);
 
-  VkVertexInputAttributeDescription PositionDescription{};
-  PositionDescription.binding = 0;
-  PositionDescription.location = 0;
-  PositionDescription.format = VK_FORMAT_R32G32B32_SFLOAT;
-  PositionDescription.offset = offsetof(Vertex, pos);
+//Vertex 1 : (-0.5, -0.5, -0.5)
+//Vertex 2 : (-0.5,  0.5, -0.5)
+//Vertex 3 : ( 0.5,  0.5, -0.5)
+//Vertex 4 : ( 0.5, -0.5, -0.5)
+//Vertex 5 : (-0.5, -0.5,  0.5)
+//Vertex 6 : (-0.5,  0.5,  0.5)
+//Vertex 7 : ( 0.5,  0.5,  0.5)
+//Vertex 8 : ( 0.5, -0.5,  0.5)
 
-  VkVertexInputAttributeDescription ColorDescription{};
-  ColorDescription.binding = 0;
-  ColorDescription.location = 1;
-  ColorDescription.format = VK_FORMAT_R32G32B32A32_SFLOAT;
-  ColorDescription.offset = offsetof(Vertex, color);
-  info.attributes.push_back(PositionDescription);
-  info.attributes.push_back(ColorDescription);
-  return info;
-}
+glm::vec3 verts[8] = {
+  {-0.5, -0.5, -0.5},
+  {-0.5,  0.5, -0.5},
+  { 0.5,  0.5, -0.5},
+  { 0.5, -0.5, -0.5},
+  {-0.5, -0.5,  0.5},
+  {-0.5,  0.5,  0.5},
+  { 0.5,  0.5,  0.5},
+  { 0.5, -0.5,  0.5}
+};
+
+std::vector<Vertex> points = {
+  // T1
+  {verts[0], {1,1,0,1}},
+  {verts[1], {1,1,0,1}},
+  {verts[2], {1,1,0,1}},
+  // T2
+  {verts[0], {1,1,0,1}},
+  {verts[2], {1,1,0,1}},
+  {verts[3], {1,1,0,1}},
+  
+  // T3
+  {verts[4], {0,1,0,1}},
+  {verts[5], {0,1,0,1}},
+  {verts[1], {0,1,0,1}},
+  // T4
+  {verts[4], {0,1,0,1}},
+  {verts[1], {0,1,0,1}},
+  {verts[0], {0,1,0,1}},
+  
+  // T5
+  {verts[3], {1,0,1,1}},
+  {verts[2], {1,0,1,1}},
+  {verts[6], {1,0,1,1}},
+  // T6
+  {verts[3], {1,0,1,1}},
+  {verts[6], {1,0,1,1}},
+  {verts[7], {1,0,1,1}},
+  
+  // T7
+  {verts[0], {1,0,0,1}},
+  {verts[3], {1,0,0,1}},
+  {verts[7], {1,0,0,1}},
+  // T8
+  {verts[0], {1,0,0,1}},
+  {verts[7], {1,0,0,1}},
+  {verts[4], {1,0,0,1}},
+  
+  // T9
+  {verts[1], {0,1,1,1}},
+  {verts[5], {0,1,1,1}},
+  {verts[6], {0,1,1,1}},
+  // T10
+  {verts[1], {0,1,1,1}},
+  {verts[6], {0,1,1,1}},
+  {verts[2], {0,1,1,1}},
+
+  // T11
+  {verts[4], {1,1,1,1}},
+  {verts[7], {1,1,1,1}},
+  {verts[6], {1,1,1,1}},
+  // T12
+  {verts[4], {1,1,1,1}},
+  {verts[6], {1,1,1,1}},
+  {verts[5], {1,1,1,1}},
+
+};
+
 
 int main()
 {
   VulkanInterface interface = VulkanInterface();
   interface.Initialize();
-  VkCommandBuffer c = interface.CreateCommandBuffer();
-  VkPipeline p = interface.CreateGraphicsPipeline();
 
   // Poll for user input
-
+  Mesh m(6);
+  m.AddVertex({ {-.5f,-.5f,1}, {.5f,1,0,1} });
+  m.AddVertex({ {-.5f, .5f,1}, {.5f,1,0,1} });
+  m.AddVertex({ { .5f, .5f,1}, {.5f,1,0,1} });
+  m.AddVertex({ {-.5f,-.5f,1}, {.5f,1,0,1} });
+  m.AddVertex({ { .5f, .5f,1}, {.5f,1,0,1} });
+  m.AddVertex({ { .5f,-.5f,1}, {.5f,1,0,1} });
+  m.SetTopology(VK_PRIMITIVE_TOPOLOGY_LINE_LIST);
   bool stillRunning = true;
+  float angle = 45.0f;
+  float posX = 0;
+  float posY = 0;
   while (stillRunning) {
 
-    interface.BeginRenderPass(c, p);
+    interface.BeginRenderPass();
     //vkCmdDraw(c, 3, 1, 0, 0);
-    interface.DrawRect({ 0, 0 }, { .5f, .5f }, { 1, 0, 0, 1}, c);
-    interface.DrawRect({ .25f, .5f }, { .5f, .5f }, { 1, 1, 1, 1  }, c);
-    interface.EndRenderPass(c, p);
+    interface.UpdateModelMatrix({ 0, 0, 5 }, { 0,0,0}, { 1,1,1 });
+    m.Draw();
+    interface.SetTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+    interface.UpdateModelMatrix({ posX, posY, 10}, { angle,angle,0 }, { .25f, .25f, .25f });
+    interface.Draw(points);
+    interface.UpdateModelMatrix({ 3, 7, 30 }, { -10,angle,0 }, { 2.5, 1, 3 });
+    interface.Draw(points);
+    interface.UpdateModelMatrix({ -30, 7, 100 }, { -10,angle,90 }, { 2.5, 2.5, 2.5 });
+    interface.Draw(points);
+    interface.UpdateModelMatrix({ 3, 7, 30 }, { -10,angle,0 }, { 2.5, 3, 3 });
+    interface.Draw(points);
+
+    interface.EndRenderPass();
+    angle += 1.0f;
+
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
 

@@ -1,5 +1,8 @@
 #pragma once
 #include <glm/glm.hpp>
+#include <glm\ext\matrix_transform.hpp>
+#include <glm\ext\matrix_clip_space.hpp>
+
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_syswm.h>
 #include <SDL2/SDL_vulkan.h>
@@ -8,43 +11,25 @@
 #include <fstream>
 #include <vector>
 
-struct VertexInfo 
+#include "Camera.h"
+#include "Vertex.h"
+
+
+struct uniformBuffer 
 {
-  std::vector<VkVertexInputBindingDescription> bindings;
-  std::vector<VkVertexInputAttributeDescription> attributes;
-
+  glm::mat4x4 worldProjection;
+  glm::mat4x4 viewProjection;
+  glm::mat4x4 objectPosition;
 };
-struct Vertex
+
+
+enum TopoClass
 {
-  glm::vec3 pos;
-  glm::vec4 color;
-
-  static VertexInfo GetInfo();
-
-  static std::array<VkVertexInputBindingDescription, 1> getBindingDescriptions() {
-    static std::array<VkVertexInputBindingDescription, 1> bindingDescriptions{};
-    bindingDescriptions[0].binding = 0;
-    bindingDescriptions[0].stride = sizeof(Vertex);
-    bindingDescriptions[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-    return bindingDescriptions;
-  }
-
-  static std::array<VkVertexInputAttributeDescription, 2> getAttributeDescriptions() {
-    static std::array<VkVertexInputAttributeDescription, 2> attributeDescriptions{};
-    attributeDescriptions[0].binding = 0;
-    attributeDescriptions[0].location = 0;
-    attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-    attributeDescriptions[0].offset = offsetof(Vertex, pos);
-
-    attributeDescriptions[1].binding = 0;
-    attributeDescriptions[1].location = 1;
-    attributeDescriptions[1].format = VK_FORMAT_R32G32B32A32_SFLOAT;
-    attributeDescriptions[1].offset = offsetof(Vertex, color);
-
-
-    return attributeDescriptions;
-  }
+  Triangle = 0,
+  Line = 1,
+  Point = 2
 };
+
 
 
 typedef struct bufferInfo 
@@ -61,20 +46,51 @@ public:
   ~VulkanInterface(void);
 
   void Initialize(void);
-  void CreateCommandPool(void);
-  void ReleaseActiveBuffers(void);
-  VkImage CreateImage(void);
-  VkCommandBuffer CreateCommandBuffer(void);
-  VkPipeline CreateGraphicsPipeline(void);
-  VkSampler CreateSampler(void);
-  VkShaderModule CreateShader(std::string path);
-  bufferInfo  VulkanInterface::CreateVertexBuffer(int VertexCount);
-  void BeginRenderPass(VkCommandBuffer buffer, VkPipeline pipeline);
-  void VulkanInterface::DrawRect(glm::vec2 pos, glm::vec2 size, glm::vec4 color, VkCommandBuffer comBuffer);
-  void ReleaseVertexBuffer(bufferInfo in);
-  void EndRenderPass(VkCommandBuffer buffer, VkPipeline pipeline);
+  bufferInfo  CreateVertexBuffer(int VertexCount);
+
+  // Draw a simple 2D rectangle on screen
+  void DrawRect(glm::vec2 pos, glm::vec2 size, glm::vec4 color);
+  void Draw(std::vector<Vertex> const& vertexes);
+
+  void SetActiveCamera(Camera c);
+
+  /*
+   * Must be called before any render commands are submitted.
+   * Tells the interface to begin accepting render commands
+   */
+  void BeginRenderPass();
+
+  /*
+   * Must be called after all render commands are submitted.
+   * Tells the interface to stop accepting render commands and to submit work to the system
+   */
+  void EndRenderPass();
+
+  void SetTopology(VkPrimitiveTopology topology);
+
+  void UpdateModelMatrix(glm::vec3 const& pos, glm::vec3 const& rotDeg, glm::vec3 const& scale) 
+  {
+    glm::vec3 local = glm::radians(rotDeg);
+    glm::vec3 localPos = pos;
+    localPos.x *= -1, localPos.y *= -1;
+    constantBuffer.objectPosition  = glm::identity<glm::mat4x4>();
+    constantBuffer.objectPosition = glm::translate(constantBuffer.objectPosition, localPos);
+    constantBuffer.objectPosition = glm::rotate(constantBuffer.objectPosition, local.x, { 1,0,0 });
+    constantBuffer.objectPosition = glm::rotate(constantBuffer.objectPosition, local.y, { 0,1,0 });
+    constantBuffer.objectPosition = glm::rotate(constantBuffer.objectPosition, local.z, { 0,0,1 });
+    constantBuffer.objectPosition = glm::scale(constantBuffer.objectPosition, scale);
+  }
+
+  
+
 private: 
+
   int _frame = 0;
+  bool _isRendering = false;
+
+  glm::vec2 windowSize;
+  Camera activeCamera;
+  uniformBuffer constantBuffer;
 
   VkDevice globalDevice;
   VkPhysicalDevice physicalDevice;
@@ -83,6 +99,12 @@ private:
   VkSemaphore imageGet;
   uint32_t imageIndex;
   VkSurfaceFormatKHR surfaceFormat;
+  VkCommandBuffer primaryBuffer;
+  VkPipeline ParentPipeline;
+  std::array<VkPipeline, 3> ActivePipelines;
+  int activePipeline;
+  TopoClass activeTopology;
+  VkPipelineLayout pipelayout;
 
   VkSurfaceCapabilitiesKHR surfaceCapabilities;
   std::vector<VkQueue> queues;
@@ -104,19 +126,27 @@ private:
   std::vector<bufferInfo> activeBuffers{};
 
   uint32_t queueCount = 0;
-
   void CreateInstance(void);
   void CreateSurface(void);
   void CreateDevice(void);
   void CreatePhysicalDevice(void);
   void CreateMemoryAllocator(void);
   void CreateRenderPass(void);
+  void CreateCommandPool(void);
   void CreateSwapChain(void);
   void CreateFrameBuffer(void);
   void CreateImageView(void);
+  void CreateCommandBuffer(void);
+  void CreateGraphicsPipeline(void);
+  void UpdatePushConstants(void);
+  void ReleaseActiveBuffers(void);
   void TransitionImage(uint32_t image, VkImageLayout old, VkImageLayout newL);
   void EndSingleBuffer(VkCommandBuffer buffer);
   void CommitBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
+  void ReleaseVertexBuffer(bufferInfo in);
+  VkShaderModule CreateShader(std::string path);
+  VkSampler CreateSampler(void);
+  VkImage CreateImage(void); 
   VkCommandBuffer CreateSingleBuffer();
 
   VkSurfaceFormatKHR VulkanInterface::SelectValidFormat(std::vector<VkSurfaceFormatKHR>& formats);
@@ -131,8 +161,8 @@ private:
   VkPipelineColorBlendStateCreateInfo CreateColorBlendState(void);
   VkPipelineDepthStencilStateCreateInfo CreateDepthStencilStat(void);
   VkDescriptorSetLayout CreateDescriptorSetLayout(void);
-  VkDescriptorPool CreateDescriptorPool(VkDescriptorSetLayout setLayout);
-  VkPipelineLayout CreatePipelineLayout(VkDescriptorSetLayout setLayout);
+  VkDescriptorPool CreateDescriptorPool(VkDescriptorSetLayout* setLayout);
+  VkPipelineLayout CreatePipelineLayout(VkDescriptorSetLayout* setLayout);
 
 
   bool isDeviceSuitable(VkPhysicalDevice device) {

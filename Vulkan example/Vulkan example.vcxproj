@@ -193,9 +193,14 @@ compile.bat</Command>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="MeshData.cpp" />
+    <ClCompile Include="Vertex.cpp" />
     <ClCompile Include="Vulkan Interface.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Camera.h" />
+    <ClInclude Include="MeshData.h" />
+    <ClInclude Include="Vertex.h" />
     <ClInclude Include="vk_mem_alloc.h">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</ExcludedFromBuild>

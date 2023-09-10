@@ -13,6 +13,14 @@
    OutputDebugStringW( os_.str().c_str() );  \
 }
 #endif
+
+namespace pass 
+{
+  VulkanInterface* interface;
+}
+
+
+
 VulkanInterface::VulkanInterface(void)
 {
   _swapChain = 0;
@@ -26,6 +34,16 @@ VulkanInterface::VulkanInterface(void)
   imageIndex = 0;
   presentSemaphore = 0;
   imageGet = 0;
+  activeCamera = { 45, {0,0,0}, {0, 0, 0} };
+  constantBuffer.worldProjection = glm::identity<glm::mat4x4>();
+  constantBuffer.objectPosition = glm::identity<glm::mat4x4>();
+  pipelayout = nullptr;
+  primaryBuffer = nullptr;
+  surfaceCapabilities = { 0 };
+  surfaceFormat = { VK_FORMAT_UNDEFINED };
+  windowSize = { 1280, 720 };
+  pass::interface = this;
+  activePipeline = Triangle;
 }
 
 VulkanInterface::~VulkanInterface(void) 
@@ -64,7 +82,8 @@ void VulkanInterface::Initialize(void)
   CreateImageView();
   CreateRenderPass();
   CreateFrameBuffer();
-
+  CreateCommandBuffer();
+  CreateGraphicsPipeline();
   VkFenceCreateInfo fenceCreate{};
   fenceCreate.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
   fenceCreate.flags = VK_FENCE_CREATE_SIGNALED_BIT;
@@ -113,7 +132,7 @@ void VulkanInterface::CreateInstance(void)
     .setApplicationVersion(1)
     .setPEngineName("LunarG SDK")
     .setEngineVersion(1)
-    .setApiVersion(VK_API_VERSION_1_0);
+    .setApiVersion(VK_API_VERSION_1_3);
 
   // vk::InstanceCreateInfo is where the programmer specifies the layers and/or extensions that
   // are needed.
@@ -324,7 +343,6 @@ VkSurfaceFormatKHR VulkanInterface::SelectValidFormat(std::vector<VkSurfaceForma
   return formats[0];
 }
 
-
 void VulkanInterface::CreateSwapChain(void)
 {
   std::vector<VkSurfaceFormatKHR> surfaceFormats(5);
@@ -367,7 +385,6 @@ void VulkanInterface::CreateSwapChain(void)
   vkGetSwapchainImagesKHR(globalDevice, _swapChain, &swapImageCount, _swapImages.data());
   
 }
-
 
 void VulkanInterface::CreateFrameBuffer(void)
 {
@@ -482,7 +499,7 @@ void VulkanInterface::CreateCommandPool(void)
   }
 }
 
-VkCommandBuffer VulkanInterface::CreateCommandBuffer(void)
+void VulkanInterface::CreateCommandBuffer(void)
 {
   VkCommandBuffer CommandBuffer;
 
@@ -500,7 +517,7 @@ VkCommandBuffer VulkanInterface::CreateCommandBuffer(void)
   }
   vkResetCommandBuffer(CommandBuffer, 0);
 
-  return CommandBuffer;
+  primaryBuffer = CommandBuffer;
 }
 
 VkShaderModule VulkanInterface::CreateShader(std::string path) 
@@ -515,18 +532,16 @@ VkShaderModule VulkanInterface::CreateShader(std::string path)
   return shaderModule;
 }
 
-
 VkPipelineShaderStageCreateInfo VulkanInterface::CreateShaderInfo(std::string path, VkShaderStageFlagBits stage)
 {
   VkPipelineShaderStageCreateInfo Shader{}; // 3344
   Shader.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
   Shader.stage = stage;
-  Shader.flags = VK_PIPELINE_SHADER_STAGE_CREATE_ALLOW_VARYING_SUBGROUP_SIZE_BIT;
+  Shader.flags = 0;
   Shader.module = CreateShader(path);
   Shader.pName = "main";
   return Shader;
 }
-
 
 VkPipelineInputAssemblyStateCreateInfo VulkanInterface::CreateInputAssemblyState(void) 
 {
@@ -534,7 +549,6 @@ VkPipelineInputAssemblyStateCreateInfo VulkanInterface::CreateInputAssemblyState
   inputState.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
   inputState.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
   inputState.primitiveRestartEnable = VK_FALSE;
-
   return inputState;
 }
 
@@ -561,8 +575,8 @@ VkPipelineRasterizationStateCreateInfo VulkanInterface::CreateaRasterizationStat
   rasterizationCreate.depthClampEnable = VK_FALSE;
   rasterizationCreate.rasterizerDiscardEnable = VK_FALSE;
   rasterizationCreate.polygonMode = VK_POLYGON_MODE_FILL;
-  rasterizationCreate.cullMode = VK_CULL_MODE_NONE;
-  rasterizationCreate.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+  rasterizationCreate.cullMode = VK_CULL_MODE_BACK_BIT;
+  rasterizationCreate.frontFace = VK_FRONT_FACE_CLOCKWISE;
   rasterizationCreate.lineWidth = 1;
   rasterizationCreate.depthBiasConstantFactor = 0.0f;
   rasterizationCreate.depthBiasClamp = 0.0f;
@@ -623,16 +637,18 @@ VkDescriptorSetLayout VulkanInterface::CreateDescriptorSetLayout(void)
   SetCreate.bindingCount = static_cast<uint32_t>(layoutBindings.size());
   SetCreate.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
   SetCreate.pBindings = layoutBindings.data();
+  
 
   vkCreateDescriptorSetLayout(globalDevice, &SetCreate, nullptr, &setLayout);
   return setLayout;
 }
 
-VkDescriptorPool VulkanInterface::CreateDescriptorPool(VkDescriptorSetLayout setLayout)
+VkDescriptorPool VulkanInterface::CreateDescriptorPool(VkDescriptorSetLayout* setLayout)
 {
   VkDescriptorPoolSize psize{};
+ 
   psize.descriptorCount = 1;
-  psize.type = VK_DESCRIPTOR_TYPE_SAMPLER;
+  psize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 
   VkDescriptorPool descriptorPool;
   VkDescriptorPoolCreateInfo descriPool{};
@@ -645,22 +661,25 @@ VkDescriptorPool VulkanInterface::CreateDescriptorPool(VkDescriptorSetLayout set
   return descriptorPool;
 }
 
-VkPipelineLayout VulkanInterface::CreatePipelineLayout(VkDescriptorSetLayout setLayout)
+VkPipelineLayout VulkanInterface::CreatePipelineLayout(VkDescriptorSetLayout* setLayout)
 {
-  VkPushConstantRange constantRange{};
-  constantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-  constantRange.size = 0;
+  std::array<VkPushConstantRange,1> constantRanges{};
+  constantRanges[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+  constantRanges[0].size = sizeof(uniformBuffer);
+  constantRanges[0].offset = 0;
 
   VkPipelineLayout layout;
   VkPipelineLayoutCreateInfo layoutCreate{};
   layoutCreate.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
   layoutCreate.setLayoutCount = 0;
-  layoutCreate.pSetLayouts = nullptr;
-  layoutCreate.pPushConstantRanges = nullptr;
-  layoutCreate.pushConstantRangeCount = 0;
+  layoutCreate.pSetLayouts = setLayout;
+  layoutCreate.pPushConstantRanges = constantRanges.data();
+  layoutCreate.pushConstantRangeCount = constantRanges.size();
   vkCreatePipelineLayout(globalDevice, &layoutCreate, nullptr, &layout);
+  pipelayout = layout;
   return layout;
 }
+
 VkPipelineDepthStencilStateCreateInfo VulkanInterface::CreateDepthStencilStat(void)
 {
   VkPipelineDepthStencilStateCreateInfo state{};
@@ -674,7 +693,7 @@ VkPipelineDepthStencilStateCreateInfo VulkanInterface::CreateDepthStencilStat(vo
   return state;
 }
 
-VkPipeline VulkanInterface::CreateGraphicsPipeline(void)
+void VulkanInterface::CreateGraphicsPipeline(void)
 {
   VkPipeline pipeline = NULL;
 
@@ -696,11 +715,11 @@ VkPipeline VulkanInterface::CreateGraphicsPipeline(void)
   VkPipelineMultisampleStateCreateInfo multiStateCreate = CreateMultiSampleInfo();
   VkPipelineColorBlendStateCreateInfo colorBlendCreate = CreateColorBlendState();
   VkPipelineDepthStencilStateCreateInfo depthStencilCreate = CreateDepthStencilStat();
-  VkDynamicState states[] = { VK_DYNAMIC_STATE_VIEWPORT ,VK_DYNAMIC_STATE_SCISSOR };
+  VkDynamicState states[] = { VK_DYNAMIC_STATE_VIEWPORT ,VK_DYNAMIC_STATE_SCISSOR, VK_DYNAMIC_STATE_PRIMITIVE_TOPOLOGY };
   VkPipelineDynamicStateCreateInfo dynamState{};
   dynamState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
   dynamState.pDynamicStates = states;
-  dynamState.dynamicStateCount = 2;
+  dynamState.dynamicStateCount = _countof(states);
 
 
   VkDescriptorSetLayout setLayout = CreateDescriptorSetLayout();
@@ -709,6 +728,7 @@ VkPipeline VulkanInterface::CreateGraphicsPipeline(void)
   pipelineCreate.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
   pipelineCreate.pStages = shaders;
   pipelineCreate.stageCount = 2;
+  pipelineCreate.flags = VK_PIPELINE_CREATE_ALLOW_DERIVATIVES_BIT;
   pipelineCreate.pVertexInputState = &vertexShader;
   pipelineCreate.pInputAssemblyState = &inputState;
   pipelineCreate.pViewportState = &viewPortState;
@@ -719,16 +739,29 @@ VkPipeline VulkanInterface::CreateGraphicsPipeline(void)
   pipelineCreate.pRasterizationState = &rasterizationCreate;
   pipelineCreate.pColorBlendState = &colorBlendCreate;
   pipelineCreate.pMultisampleState = &multiStateCreate;
-  pipelineCreate.layout = CreatePipelineLayout(setLayout);
+  pipelineCreate.layout = CreatePipelineLayout(&setLayout);
   pipelineCreate.pDepthStencilState = &depthStencilCreate;
   pipelineCreate.pDynamicState = &dynamState;
 
-
   vkCreateGraphicsPipelines(globalDevice, VK_NULL_HANDLE, 1, &pipelineCreate, nullptr, &pipeline);
-  return pipeline;
+  ParentPipeline = pipeline;
+
+  inputState.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+  pipelineCreate.flags = VK_PIPELINE_CREATE_DERIVATIVE_BIT;
+  pipelineCreate.basePipelineHandle = ParentPipeline;
+  vkCreateGraphicsPipelines(globalDevice, VK_NULL_HANDLE, 1, &pipelineCreate, nullptr, &pipeline);
+  ActivePipelines[0] = pipeline;
+
+  inputState.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
+  vkCreateGraphicsPipelines(globalDevice, VK_NULL_HANDLE, 1, &pipelineCreate, nullptr, &pipeline);
+  ActivePipelines[1] = pipeline;
+
+  //inputState.topology = VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
+  vkCreateGraphicsPipelines(globalDevice, VK_NULL_HANDLE, 1, &pipelineCreate, nullptr, &pipeline);
+  ActivePipelines[2] = pipeline;
 }
 
-void VulkanInterface::BeginRenderPass(VkCommandBuffer buffer, VkPipeline pipeline)
+void VulkanInterface::BeginRenderPass()
 {
 
   vkWaitForFences(globalDevice, 1, &fence, VK_TRUE, UINT64_MAX);
@@ -737,7 +770,7 @@ void VulkanInterface::BeginRenderPass(VkCommandBuffer buffer, VkPipeline pipelin
   ReleaseActiveBuffers();
 
   vkAcquireNextImageKHR(globalDevice, _swapChain, UINT64_MAX, imageGet, nullptr, &imageIndex);
-  vkResetCommandBuffer(buffer, 0);
+  vkResetCommandBuffer(primaryBuffer, 0);
   //TransitionImage(imageIndex, _imageLayouts[imageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
   VkCommandBufferBeginInfo cmdBeginInfo = {};
   cmdBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -745,7 +778,7 @@ void VulkanInterface::BeginRenderPass(VkCommandBuffer buffer, VkPipeline pipelin
   cmdBeginInfo.pInheritanceInfo = nullptr;
   cmdBeginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT | VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT;
 
-  vkBeginCommandBuffer(buffer, &cmdBeginInfo);
+  vkBeginCommandBuffer(primaryBuffer, &cmdBeginInfo);
 
   VkRect2D draw = {
     {0,0},
@@ -765,16 +798,16 @@ void VulkanInterface::BeginRenderPass(VkCommandBuffer buffer, VkPipeline pipelin
   beginInfo.clearValueCount = 2;
   beginInfo.pClearValues = clear;
 
-  vkCmdBeginRenderPass(buffer, &beginInfo, VK_SUBPASS_CONTENTS_INLINE);
+  vkCmdBeginRenderPass(primaryBuffer, &beginInfo, VK_SUBPASS_CONTENTS_INLINE);
   VkRect2D scissor = { {0,0}, surfaceCapabilities.maxImageExtent };
   VkViewport port = { 0,0,
     static_cast<float>(surfaceCapabilities.maxImageExtent.width),
     static_cast<float>(surfaceCapabilities.maxImageExtent.height), 0, 1};
 
-  vkCmdBindPipeline(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
-  vkCmdSetScissor(buffer, 0, 1, &scissor);
-  vkCmdSetViewport(buffer, 0, 1, &port);
-
+  vkCmdBindPipeline(primaryBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, ActivePipelines[activePipeline]);
+  vkCmdSetScissor(primaryBuffer, 0, 1, &scissor);
+  vkCmdSetViewport(primaryBuffer, 0, 1, &port);
+  _isRendering = true;
 }
 
 bufferInfo  VulkanInterface::CreateVertexBuffer(int VertexCount) 
@@ -809,24 +842,27 @@ bufferInfo  VulkanInterface::CreateVertexBuffer(int VertexCount)
   return { vertexBuffer, bufferAllocation, memRec.size };
 }
 
-void VulkanInterface::DrawRect(glm::vec2 pos, glm::vec2 size, glm::vec4 color, VkCommandBuffer comBuffer)
+void VulkanInterface::DrawRect(glm::vec2 pos, glm::vec2 size, glm::vec4 color)
 {
+  UpdatePushConstants();
+  if (!_isRendering)
+    throw std::runtime_error("Cannot draw without a render pass started");
   bufferInfo buffer = CreateVertexBuffer(6);
   void* data = NULL;
   std::array<Vertex, 6> vertexs = {};
-  vertexs[0] = { {pos.x - size.x / 2.0f, pos.y - size.y / 2.0f, 0}, color };
-  vertexs[1] = { {pos.x - size.x / 2.0f, pos.y + size.y / 2.0f, 0}, color };
-  vertexs[2] = { {pos.x + size.x / 2.0f, pos.y + size.y / 2.0f, 0}, color };
-  vertexs[3] = { {pos.x + size.x / 2.0f, pos.y + size.y / 2.0f, 0}, color };
-  vertexs[4] = { {pos.x + size.x / 2.0f, pos.y - size.y / 2.0f, 0}, color };
-  vertexs[5] = { {pos.x - size.x / 2.0f, pos.y - size.y / 2.0f, 0}, color };
+  vertexs[0] = { {pos.x - size.x / 2.0f, pos.y - size.y / 2.0f, 1}, color };
+  vertexs[1] = { {pos.x - size.x / 2.0f, pos.y + size.y / 2.0f, 1}, color };
+  vertexs[2] = { {pos.x + size.x / 2.0f, pos.y + size.y / 2.0f, 1}, color };
+  vertexs[3] = { {pos.x + size.x / 2.0f, pos.y + size.y / 2.0f, 1}, color };
+  vertexs[4] = { {pos.x + size.x / 2.0f, pos.y - size.y / 2.0f, 1}, color };
+  vertexs[5] = { {pos.x - size.x / 2.0f, pos.y - size.y / 2.0f, 1}, color };
   vmaMapMemory(allocator, buffer.memory, &data);
   memcpy(data, vertexs.data(), sizeof(Vertex) * vertexs.size());
   VkBuffer buffers[2] = { buffer.buffer, 0 };
   VkDeviceSize ComBuffOffset = 0;
 
-  vkCmdBindVertexBuffers(comBuffer, 0, 1, &buffer.buffer, &ComBuffOffset);
-  vkCmdDraw(comBuffer, static_cast<uint32_t>( vertexs.size()), 1, 0, 0);
+  vkCmdBindVertexBuffers(primaryBuffer, 0, 1, &buffer.buffer, &ComBuffOffset);
+  vkCmdDraw(primaryBuffer, static_cast<uint32_t>( vertexs.size()), 1, 0, 0);
   vmaUnmapMemory(allocator, buffer.memory);
   //for (int i = 0; i < 6; ++i)
   //{
@@ -854,16 +890,19 @@ void VulkanInterface::ReleaseActiveBuffers(void)
   activeBuffers.clear();
 }
 
-void VulkanInterface::EndRenderPass(VkCommandBuffer buffer, VkPipeline pipeline)
+void VulkanInterface::EndRenderPass()
 {
-  vkCmdEndRenderPass(buffer);
+  if (!_isRendering)
+    throw std::runtime_error("Cannot end submit an unstarted renderpass");
+
+  vkCmdEndRenderPass(primaryBuffer);
   VkSemaphore waitSemas[] = { imageGet };
   VkSemaphore signalSema[] = { presentSemaphore };
   // Submit for draw
   VkSubmitInfo subInfo{};
   std::array<VkPipelineStageFlags,1> waitStages = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
   subInfo.commandBufferCount = 1;
-  subInfo.pCommandBuffers = &buffer;
+  subInfo.pCommandBuffers = &primaryBuffer;
   subInfo.pWaitDstStageMask = waitStages.data();
   subInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
   subInfo.signalSemaphoreCount = 1;
@@ -871,7 +910,7 @@ void VulkanInterface::EndRenderPass(VkCommandBuffer buffer, VkPipeline pipeline)
   subInfo.pWaitSemaphores = waitSemas;
   subInfo.waitSemaphoreCount = 1;
 
-  vkEndCommandBuffer(buffer);
+  vkEndCommandBuffer(primaryBuffer);
   vkQueueSubmit(queues[0], 1, &subInfo, fence);
 
   VkSwapchainKHR swapChains[] = { _swapChain };
@@ -886,6 +925,7 @@ void VulkanInterface::EndRenderPass(VkCommandBuffer buffer, VkPipeline pipeline)
   presInfo.pResults = &result;
   vkQueuePresentKHR(queues[0], &presInfo);
   ++_frame;
+  _isRendering = false;
 }
 
 VkCommandBuffer VulkanInterface::CreateSingleBuffer() 
@@ -960,6 +1000,30 @@ void VulkanInterface::CommitBufferToImage(VkBuffer buffer, VkImage image, uint32
   EndSingleBuffer(commandBuffer);
 }
 
+void VulkanInterface::SetActiveCamera(Camera c)
+{
+  activeCamera = c;
+}
+
+void VulkanInterface::Draw(std::vector<Vertex> const& vertexes)  
+{
+  UpdatePushConstants();
+  if (!_isRendering)
+    throw std::runtime_error("Cannot draw without a render pass started");
+  bufferInfo buffer = CreateVertexBuffer(vertexes.size());
+  void* data = NULL;
+  vmaMapMemory(allocator, buffer.memory, &data);
+  memcpy(data, vertexes.data(), sizeof(Vertex) * vertexes.size());
+  VkBuffer buffers[2] = { buffer.buffer, 0 };
+  VkDeviceSize ComBuffOffset = 0;
+
+  vkCmdBindVertexBuffers(primaryBuffer, 0, 1, &buffer.buffer, &ComBuffOffset);
+  vkCmdDraw(primaryBuffer, static_cast<uint32_t>(vertexes.size()), 1, 0, 0);
+  vmaUnmapMemory(allocator, buffer.memory);
+
+
+}
+
 void VulkanInterface::TransitionImage(uint32_t image, VkImageLayout old, VkImageLayout newL)
 {
   VkCommandBuffer tempBuffer = CreateSingleBuffer();
@@ -1023,4 +1087,46 @@ void VulkanInterface::TransitionImage(uint32_t image, VkImageLayout old, VkImage
   );
   _imageLayouts[image] = newL;
   EndSingleBuffer(tempBuffer);
+}
+
+void VulkanInterface::UpdatePushConstants(void) 
+{
+  glm::mat4x4 camMat = activeCamera.GetMatrix();
+  glm::vec3 camPos = camMat * glm::vec4(0, 0, 0, 1);
+  glm::vec3 lookatPos = camMat * glm::vec4(0, 0, 2, 1);
+  windowSize = glm::vec2(surfaceCapabilities.currentExtent.width, surfaceCapabilities.currentExtent.width);
+  constantBuffer.viewProjection = glm::lookAt(camPos, lookatPos, glm::vec3(0, 1, 0));
+  constantBuffer.worldProjection = glm::perspective(activeCamera.fov, windowSize.x / windowSize.y, 1.0f, 1500.0f);
+  //constantBuffer.viewProjection  = glm::transpose(constantBuffer.viewProjection);
+  //constantBuffer.worldProjection = glm::transpose(constantBuffer.worldProjection);
+  vkCmdPushConstants(primaryBuffer, pipelayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(uniformBuffer), &constantBuffer);
+
+}
+
+TopoClass getTopologyClass(VkPrimitiveTopology topology)
+{
+  switch(topology)
+  {
+  case 0:
+    return Point;
+  case 1:
+  case 2:
+    return Line;
+  case 3:
+  case 4:
+  case 5:
+    return Triangle;
+  }
+}
+
+void VulkanInterface::SetTopology(VkPrimitiveTopology topology)
+{
+  TopoClass clas = getTopologyClass(topology);
+  
+  if (clas != activeTopology)
+  {
+    vkCmdBindPipeline(primaryBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, ActivePipelines[clas]);
+  }
+
+  vkCmdSetPrimitiveTopology(primaryBuffer, topology);
 }
