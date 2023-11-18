@@ -17,12 +17,12 @@
  * limitations under the License.
  */
 
-/*
-Vulkan C++ Windowed Project Template
-Create and destroy a Vulkan surface on an SDL window.
-*/
+ /*
+ Vulkan C++ Windowed Project Template
+ Create and destroy a Vulkan surface on an SDL window.
+ */
 
-// Enable the WSI extensions
+ // Enable the WSI extensions
 #if defined(__ANDROID__)
 #define VK_USE_PLATFORM_ANDROID_KHR
 #elif defined(__linux__)
@@ -72,7 +72,7 @@ std::vector<Vertex> points = {
   {verts[0], {1,1,0,1}},
   {verts[2], {1,1,0,1}},
   {verts[3], {1,1,0,1}},
-  
+
   // T3
   {verts[4], {0,1,0,1}},
   {verts[5], {0,1,0,1}},
@@ -81,7 +81,7 @@ std::vector<Vertex> points = {
   {verts[4], {0,1,0,1}},
   {verts[1], {0,1,0,1}},
   {verts[0], {0,1,0,1}},
-  
+
   // T5
   {verts[3], {1,0,1,1}},
   {verts[2], {1,0,1,1}},
@@ -90,7 +90,7 @@ std::vector<Vertex> points = {
   {verts[3], {1,0,1,1}},
   {verts[6], {1,0,1,1}},
   {verts[7], {1,0,1,1}},
-  
+
   // T7
   {verts[0], {1,0,0,1}},
   {verts[3], {1,0,0,1}},
@@ -99,7 +99,7 @@ std::vector<Vertex> points = {
   {verts[0], {1,0,0,1}},
   {verts[7], {1,0,0,1}},
   {verts[4], {1,0,0,1}},
-  
+
   // T9
   {verts[1], {0,1,1,1}},
   {verts[5], {0,1,1,1}},
@@ -125,7 +125,7 @@ int main()
 {
   VulkanInterface interface = VulkanInterface();
   interface.Initialize();
-
+  Camera& activeCam = interface.GetCamera();
   // Poll for user input
   Mesh m(6);
   m.AddVertex({ {-.5f,-.5f,1}, {.5f,1,0,1} });
@@ -135,6 +135,13 @@ int main()
   m.AddVertex({ { .5f, .5f,1}, {.5f,1,0,1} });
   m.AddVertex({ { .5f,-.5f,1}, {.5f,1,0,1} });
   m.SetTopology(VK_PRIMITIVE_TOPOLOGY_LINE_LIST);
+  Mesh plane(4);
+  plane.AddVertex({ { .5f, 0, .5f}, {1, 1, 1, 1} });
+  plane.AddVertex({ {-.5f, 0, .5f}, {1, 1, 1, 1} });
+  plane.AddVertex({ {-.5f, 0,-.5f}, {1, 1, 1, 1} });
+  plane.AddVertex({ { .5f, 0, .5f}, {1, 1, 1, 1} });
+  plane.AddVertex({ {-.5f, 0,-.5f}, {1, 1, 1, 1} });
+  plane.AddVertex({ { .5f, 0,-.5f}, {1, 1, 1, 1} });
   bool stillRunning = true;
   float angle = 45.0f;
   float posX = 0;
@@ -143,10 +150,12 @@ int main()
 
     interface.BeginRenderPass();
     //vkCmdDraw(c, 3, 1, 0, 0);
-    interface.UpdateModelMatrix({ 0, 0, 5 }, { 0,0,0}, { 1,1,1 });
+    interface.UpdateModelMatrix({ 0, 0, 5 }, { 0,0,0 }, { 1,1,1 });
     m.Draw();
+    interface.UpdateModelMatrix({ 0, -10, 0 }, { 0,0,0 }, { 100,1,100  });
+    plane.Draw();
     interface.SetTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-    interface.UpdateModelMatrix({ posX, posY, 10}, { angle,angle,0 }, { .25f, .25f, .25f });
+    interface.UpdateModelMatrix({ posX, posY, 10 }, { angle,angle,0 }, { .25f, .25f, .25f });
     interface.Draw(points);
     interface.UpdateModelMatrix({ 3, 7, 30 }, { -10,angle,0 }, { 2.5, 1, 3 });
     interface.Draw(points);
@@ -156,8 +165,9 @@ int main()
     interface.Draw(points);
 
     interface.EndRenderPass();
+    
     angle += 1.0f;
-
+    //activeCam.RotateCamera(activeCam.rotation + glm::vec3(0,0,1));
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
 
@@ -167,7 +177,9 @@ int main()
       case SDL_QUIT:
         stillRunning = false;
         break;
-
+      case SDL_KEYDOWN:
+        
+        break;
       default:
         // Do nothing.
         break;

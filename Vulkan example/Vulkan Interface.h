@@ -81,7 +81,7 @@ public:
     constantBuffer.objectPosition = glm::scale(constantBuffer.objectPosition, scale);
   }
 
-  
+  Camera& GetCamera() { return activeCamera; }
 
 private: 
 

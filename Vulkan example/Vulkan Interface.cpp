@@ -14,7 +14,7 @@
 }
 #endif
 
-namespace pass 
+namespace pass
 {
   VulkanInterface* interface;
 }
@@ -46,7 +46,7 @@ VulkanInterface::VulkanInterface(void)
   activePipeline = Triangle;
 }
 
-VulkanInterface::~VulkanInterface(void) 
+VulkanInterface::~VulkanInterface(void)
 {
   vkDestroySwapchainKHR(globalDevice, _swapChain, nullptr);
 
@@ -56,7 +56,7 @@ VulkanInterface::~VulkanInterface(void)
   instance.destroy();
 }
 
-void VulkanInterface::Initialize(void) 
+void VulkanInterface::Initialize(void)
 {
   // Create an SDL window that supports Vulkan rendering.
   if (SDL_Init(SDL_INIT_VIDEO) != 0) {
@@ -88,7 +88,7 @@ void VulkanInterface::Initialize(void)
   fenceCreate.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
   fenceCreate.flags = VK_FENCE_CREATE_SIGNALED_BIT;
   vkCreateFence(globalDevice, &fenceCreate, nullptr, &fence);
-  
+
   VkSemaphoreCreateInfo presentSema{};
   presentSema.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
   vkCreateSemaphore(globalDevice, &presentSema, nullptr, &presentSemaphore);
@@ -100,7 +100,7 @@ void VulkanInterface::Initialize(void)
 void add_extension(unsigned int* count, std::vector<const char*>* extensions, const char* newExtension)
 {
   extensions->push_back(newExtension);
-  if(count)
+  if (count)
     *count = static_cast<unsigned int>(extensions->size());
 }
 
@@ -128,9 +128,9 @@ void VulkanInterface::CreateInstance(void)
   // vk::ApplicationInfo allows the programmer to specifiy some basic information about the
   // program, which can be useful for layers and tools to provide more debug information.
   vk::ApplicationInfo appInfo = vk::ApplicationInfo()
-    .setPApplicationName("Vulkan C++ Windowed Program Template")
+    .setPApplicationName("Vulkan Example")
     .setApplicationVersion(1)
-    .setPEngineName("LunarG SDK")
+    .setPEngineName("Strea Engine A")
     .setEngineVersion(1)
     .setApiVersion(VK_API_VERSION_1_3);
 
@@ -158,7 +158,7 @@ void VulkanInterface::CreateInstance(void)
 }
 
 
-void VulkanInterface::CreateSurface(void) 
+void VulkanInterface::CreateSurface(void)
 {
   // Create a Vulkan surface for rendering
   VkSurfaceKHR c_surface;
@@ -197,7 +197,7 @@ void VulkanInterface::CreatePhysicalDevice(void)
 }
 
 
-void VulkanInterface::CreateDevice(void) 
+void VulkanInterface::CreateDevice(void)
 {
 
   const float priorities[2] = { 0, 1 };
@@ -277,7 +277,7 @@ void VulkanInterface::CreateMemoryAllocator(void)
 void VulkanInterface::CreateRenderPass(void)
 {
   VkAttachmentDescription attachments[1] = {}; // 3638
-  VkAttachmentReference Attachments[1] = { 
+  VkAttachmentReference Attachments[1] = {
     {0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL },
   };
   attachments[0].format = surfaceFormat.format;
@@ -333,9 +333,9 @@ void VulkanInterface::CreateRenderPass(void)
   vkCreateRenderPass(globalDevice, &renderPassCreate, nullptr, &currentRenderPass);
 }
 
-VkSurfaceFormatKHR VulkanInterface::SelectValidFormat(std::vector<VkSurfaceFormatKHR>& formats) 
+VkSurfaceFormatKHR VulkanInterface::SelectValidFormat(std::vector<VkSurfaceFormatKHR>& formats)
 {
-  for (auto format : formats) 
+  for (auto format : formats)
   {
     if (format.format == VK_FORMAT_B8G8R8A8_SRGB && format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
       return format;
@@ -362,8 +362,8 @@ void VulkanInterface::CreateSwapChain(void)
   swapCreate.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
   swapCreate.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-  std::array<uint32_t,1> indicies = { 0 };
-  
+  std::array<uint32_t, 1> indicies = { 0 };
+
   swapCreate.queueFamilyIndexCount = 1;
   swapCreate.pQueueFamilyIndices = indicies.data();
   swapCreate.presentMode = VK_PRESENT_MODE_FIFO_KHR;
@@ -371,26 +371,26 @@ void VulkanInterface::CreateSwapChain(void)
   swapCreate.preTransform = surfaceCapabilities.currentTransform;
   swapCreate.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
   vkCreateSwapchainKHR(globalDevice, &swapCreate, nullptr, &swapChain);
-  
+
   _swapChain = swapChain;
-  
+
   vkGetSwapchainImagesKHR(globalDevice, _swapChain, &swapImageCount, nullptr);
-  
+
   _swapImages = std::vector<VkImage>(swapImageCount);
   _imageLayouts = std::vector<VkImageLayout>(swapImageCount);
-  for (int i = 0; i < _imageLayouts.size(); i++) 
+  for (int i = 0; i < _imageLayouts.size(); i++)
   {
     _imageLayouts[i] = VK_IMAGE_LAYOUT_UNDEFINED;
   }
   vkGetSwapchainImagesKHR(globalDevice, _swapChain, &swapImageCount, _swapImages.data());
-  
+
 }
 
 void VulkanInterface::CreateFrameBuffer(void)
 {
   const size_t size = _swapImageViews.size();
   _buffers.reserve(size);
-  for (int i = 0; i < size; ++i) 
+  for (int i = 0; i < size; ++i)
   {
     VkImageView attachments[] = {
     _swapImageViews[i]
@@ -409,7 +409,7 @@ void VulkanInterface::CreateFrameBuffer(void)
   }
 }
 
-VkImage VulkanInterface::CreateImage(void) 
+VkImage VulkanInterface::CreateImage(void)
 {
   uint32_t queueFamilyInex = 0;
   VkImage image;
@@ -435,11 +435,11 @@ VkImage VulkanInterface::CreateImage(void)
   return image;
 }
 
-void VulkanInterface::CreateImageView(void) 
+void VulkanInterface::CreateImageView(void)
 {
   const size_t size = _swapImages.size();
   _swapImageViews.reserve(size);
-  for (int i = 0; i < size; i++) 
+  for (int i = 0; i < size; i++)
   {
     VkImageView loc;
     VkImageViewCreateInfo imageCreateInfo = {}; // 3304
@@ -459,7 +459,7 @@ void VulkanInterface::CreateImageView(void)
   }
 }
 
-VkSampler VulkanInterface::CreateSampler(void) 
+VkSampler VulkanInterface::CreateSampler(void)
 {
   VkSampler sampler;
   VkSamplerCreateInfo sampleCreate{ };
@@ -520,7 +520,7 @@ void VulkanInterface::CreateCommandBuffer(void)
   primaryBuffer = CommandBuffer;
 }
 
-VkShaderModule VulkanInterface::CreateShader(std::string path) 
+VkShaderModule VulkanInterface::CreateShader(std::string path)
 {
   VkShaderModule shaderModule;
   VkShaderModuleCreateInfo shaderCreate{};
@@ -543,7 +543,7 @@ VkPipelineShaderStageCreateInfo VulkanInterface::CreateShaderInfo(std::string pa
   return Shader;
 }
 
-VkPipelineInputAssemblyStateCreateInfo VulkanInterface::CreateInputAssemblyState(void) 
+VkPipelineInputAssemblyStateCreateInfo VulkanInterface::CreateInputAssemblyState(void)
 {
   VkPipelineInputAssemblyStateCreateInfo inputState{};
   inputState.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -554,9 +554,9 @@ VkPipelineInputAssemblyStateCreateInfo VulkanInterface::CreateInputAssemblyState
 
 VkPipelineViewportStateCreateInfo VulkanInterface::CreateViewPortState(void)
 {
-  static VkViewport port{ 0,0, 
-    static_cast<float>(surfaceCapabilities.maxImageExtent.width), 
-    static_cast<float>(surfaceCapabilities.maxImageExtent.height), 0, 1};
+  static VkViewport port{ 0,0,
+    static_cast<float>(surfaceCapabilities.maxImageExtent.width),
+    static_cast<float>(surfaceCapabilities.maxImageExtent.height), 0, 1 };
   static VkRect2D scissor{ {0,0},
     surfaceCapabilities.maxImageExtent };
   VkPipelineViewportStateCreateInfo viewPortState{};
@@ -568,7 +568,7 @@ VkPipelineViewportStateCreateInfo VulkanInterface::CreateViewPortState(void)
   return viewPortState;
 }
 
-VkPipelineRasterizationStateCreateInfo VulkanInterface::CreateaRasterizationState(void) 
+VkPipelineRasterizationStateCreateInfo VulkanInterface::CreateaRasterizationState(void)
 {
   VkPipelineRasterizationStateCreateInfo rasterizationCreate{};
   rasterizationCreate.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
@@ -585,7 +585,7 @@ VkPipelineRasterizationStateCreateInfo VulkanInterface::CreateaRasterizationStat
   return rasterizationCreate;
 }
 
-VkPipelineMultisampleStateCreateInfo VulkanInterface::CreateMultiSampleInfo(void) 
+VkPipelineMultisampleStateCreateInfo VulkanInterface::CreateMultiSampleInfo(void)
 {
 
   VkPipelineMultisampleStateCreateInfo multiStateCreate{};
@@ -599,13 +599,13 @@ VkPipelineMultisampleStateCreateInfo VulkanInterface::CreateMultiSampleInfo(void
   return multiStateCreate;
 }
 
-VkPipelineColorBlendStateCreateInfo VulkanInterface::CreateColorBlendState(void) 
+VkPipelineColorBlendStateCreateInfo VulkanInterface::CreateColorBlendState(void)
 {
-  static std::array<VkPipelineColorBlendAttachmentState,2> colorBlend{};
+  static std::array<VkPipelineColorBlendAttachmentState, 2> colorBlend{};
   colorBlend[0].blendEnable = VK_FALSE;
   colorBlend[0].colorWriteMask = VK_COLOR_COMPONENT_R_BIT
-    | VK_COLOR_COMPONENT_G_BIT 
-    | VK_COLOR_COMPONENT_B_BIT 
+    | VK_COLOR_COMPONENT_G_BIT
+    | VK_COLOR_COMPONENT_B_BIT
     | VK_COLOR_COMPONENT_A_BIT;
   colorBlend[1] = colorBlend[0];
 
@@ -626,7 +626,7 @@ VkPipelineColorBlendStateCreateInfo VulkanInterface::CreateColorBlendState(void)
 
 VkDescriptorSetLayout VulkanInterface::CreateDescriptorSetLayout(void)
 {
-  std::array<VkDescriptorSetLayoutBinding,1> layoutBindings = {};
+  std::array<VkDescriptorSetLayoutBinding, 1> layoutBindings = {};
   layoutBindings[0].binding = uint32_t(0);
   layoutBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
   layoutBindings[0].descriptorCount = 0;
@@ -637,7 +637,7 @@ VkDescriptorSetLayout VulkanInterface::CreateDescriptorSetLayout(void)
   SetCreate.bindingCount = static_cast<uint32_t>(layoutBindings.size());
   SetCreate.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
   SetCreate.pBindings = layoutBindings.data();
-  
+
 
   vkCreateDescriptorSetLayout(globalDevice, &SetCreate, nullptr, &setLayout);
   return setLayout;
@@ -646,7 +646,7 @@ VkDescriptorSetLayout VulkanInterface::CreateDescriptorSetLayout(void)
 VkDescriptorPool VulkanInterface::CreateDescriptorPool(VkDescriptorSetLayout* setLayout)
 {
   VkDescriptorPoolSize psize{};
- 
+
   psize.descriptorCount = 1;
   psize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 
@@ -663,7 +663,7 @@ VkDescriptorPool VulkanInterface::CreateDescriptorPool(VkDescriptorSetLayout* se
 
 VkPipelineLayout VulkanInterface::CreatePipelineLayout(VkDescriptorSetLayout* setLayout)
 {
-  std::array<VkPushConstantRange,1> constantRanges{};
+  std::array<VkPushConstantRange, 1> constantRanges{};
   constantRanges[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
   constantRanges[0].size = sizeof(uniformBuffer);
   constantRanges[0].offset = 0;
@@ -684,11 +684,11 @@ VkPipelineDepthStencilStateCreateInfo VulkanInterface::CreateDepthStencilStat(vo
 {
   VkPipelineDepthStencilStateCreateInfo state{};
   state.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-  state.depthTestEnable  = VK_TRUE;
+  state.depthTestEnable = VK_TRUE;
   state.depthWriteEnable = VK_TRUE;
-  state.depthCompareOp   = VK_COMPARE_OP_GREATER;
+  state.depthCompareOp = VK_COMPARE_OP_GREATER;
   //state.front            = state.back;
-  state.back.compareOp   = VK_COMPARE_OP_ALWAYS;
+  state.back.compareOp = VK_COMPARE_OP_ALWAYS;
 
   return state;
 }
@@ -802,7 +802,7 @@ void VulkanInterface::BeginRenderPass()
   VkRect2D scissor = { {0,0}, surfaceCapabilities.maxImageExtent };
   VkViewport port = { 0,0,
     static_cast<float>(surfaceCapabilities.maxImageExtent.width),
-    static_cast<float>(surfaceCapabilities.maxImageExtent.height), 0, 1};
+    static_cast<float>(surfaceCapabilities.maxImageExtent.height), 0, 1 };
 
   vkCmdBindPipeline(primaryBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, ActivePipelines[activePipeline]);
   vkCmdSetScissor(primaryBuffer, 0, 1, &scissor);
@@ -810,7 +810,7 @@ void VulkanInterface::BeginRenderPass()
   _isRendering = true;
 }
 
-bufferInfo  VulkanInterface::CreateVertexBuffer(int VertexCount) 
+bufferInfo  VulkanInterface::CreateVertexBuffer(int VertexCount)
 {
   std::array<uint32_t, 1> indicies = { 0 };
 
@@ -825,7 +825,7 @@ bufferInfo  VulkanInterface::CreateVertexBuffer(int VertexCount)
   allocationInfo.requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
   allocationInfo.preferredFlags = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
   allocationInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
-  
+
   VmaAllocationInfo AllocInfo;
 
 
@@ -862,7 +862,7 @@ void VulkanInterface::DrawRect(glm::vec2 pos, glm::vec2 size, glm::vec4 color)
   VkDeviceSize ComBuffOffset = 0;
 
   vkCmdBindVertexBuffers(primaryBuffer, 0, 1, &buffer.buffer, &ComBuffOffset);
-  vkCmdDraw(primaryBuffer, static_cast<uint32_t>( vertexs.size()), 1, 0, 0);
+  vkCmdDraw(primaryBuffer, static_cast<uint32_t>(vertexs.size()), 1, 0, 0);
   vmaUnmapMemory(allocator, buffer.memory);
   //for (int i = 0; i < 6; ++i)
   //{
@@ -881,9 +881,9 @@ void VulkanInterface::ReleaseVertexBuffer(bufferInfo in)
 
 }
 
-void VulkanInterface::ReleaseActiveBuffers(void) 
+void VulkanInterface::ReleaseActiveBuffers(void)
 {
-  for (int i = 0; i < activeBuffers.size(); i++) 
+  for (int i = 0; i < activeBuffers.size(); i++)
   {
     ReleaseVertexBuffer(activeBuffers[i]);
   }
@@ -900,7 +900,7 @@ void VulkanInterface::EndRenderPass()
   VkSemaphore signalSema[] = { presentSemaphore };
   // Submit for draw
   VkSubmitInfo subInfo{};
-  std::array<VkPipelineStageFlags,1> waitStages = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+  std::array<VkPipelineStageFlags, 1> waitStages = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
   subInfo.commandBufferCount = 1;
   subInfo.pCommandBuffers = &primaryBuffer;
   subInfo.pWaitDstStageMask = waitStages.data();
@@ -926,9 +926,13 @@ void VulkanInterface::EndRenderPass()
   vkQueuePresentKHR(queues[0], &presInfo);
   ++_frame;
   _isRendering = false;
+
+  UpdatePushConstants();
+
+
 }
 
-VkCommandBuffer VulkanInterface::CreateSingleBuffer() 
+VkCommandBuffer VulkanInterface::CreateSingleBuffer()
 {
   VkCommandBuffer CommandBuffer;
 
@@ -952,11 +956,11 @@ VkCommandBuffer VulkanInterface::CreateSingleBuffer()
   cmdBeginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
   vkBeginCommandBuffer(CommandBuffer, &cmdBeginInfo);
-  
+
   return CommandBuffer;
 }
 
-void VulkanInterface::EndSingleBuffer(VkCommandBuffer buffer) 
+void VulkanInterface::EndSingleBuffer(VkCommandBuffer buffer)
 {
   vkEndCommandBuffer(buffer);
 
@@ -970,7 +974,7 @@ void VulkanInterface::EndSingleBuffer(VkCommandBuffer buffer)
   vkFreeCommandBuffers(globalDevice, pool, 1, &buffer);
 }
 
-void VulkanInterface::CommitBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height) 
+void VulkanInterface::CommitBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height)
 {
   VkCommandBuffer commandBuffer = CreateSingleBuffer();
   VkBufferImageCopy region{};
@@ -1005,7 +1009,7 @@ void VulkanInterface::SetActiveCamera(Camera c)
   activeCamera = c;
 }
 
-void VulkanInterface::Draw(std::vector<Vertex> const& vertexes)  
+void VulkanInterface::Draw(std::vector<Vertex> const& vertexes)
 {
   UpdatePushConstants();
   if (!_isRendering)
@@ -1058,7 +1062,7 @@ void VulkanInterface::TransitionImage(uint32_t image, VkImageLayout old, VkImage
     srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
     dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
   }
-  else if(newL == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR)
+  else if (newL == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR)
   {
     barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
     barrier.dstAccessMask = 0;
@@ -1066,7 +1070,7 @@ void VulkanInterface::TransitionImage(uint32_t image, VkImageLayout old, VkImage
     srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
     dstStage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
   }
-  else if(newL == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
+  else if (newL == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
   {
     barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
     barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
@@ -1079,7 +1083,7 @@ void VulkanInterface::TransitionImage(uint32_t image, VkImageLayout old, VkImage
   }
   vkCmdPipelineBarrier(
     tempBuffer,
-    srcStage , dstStage ,
+    srcStage, dstStage,
     0,
     0, nullptr,
     0, nullptr,
@@ -1089,13 +1093,13 @@ void VulkanInterface::TransitionImage(uint32_t image, VkImageLayout old, VkImage
   EndSingleBuffer(tempBuffer);
 }
 
-void VulkanInterface::UpdatePushConstants(void) 
+void VulkanInterface::UpdatePushConstants(void)
 {
   glm::mat4x4 camMat = activeCamera.GetMatrix();
   glm::vec3 camPos = camMat * glm::vec4(0, 0, 0, 1);
   glm::vec3 lookatPos = camMat * glm::vec4(0, 0, 2, 1);
   windowSize = glm::vec2(surfaceCapabilities.currentExtent.width, surfaceCapabilities.currentExtent.width);
-  constantBuffer.viewProjection = glm::lookAt(camPos, lookatPos, glm::vec3(0, 1, 0));
+  constantBuffer.viewProjection = glm::lookAt(camPos, lookatPos, glm::vec3(0, 1, 0)) * camMat;
   constantBuffer.worldProjection = glm::perspective(activeCamera.fov, windowSize.x / windowSize.y, 1.0f, 1500.0f);
   //constantBuffer.viewProjection  = glm::transpose(constantBuffer.viewProjection);
   //constantBuffer.worldProjection = glm::transpose(constantBuffer.worldProjection);
@@ -1105,7 +1109,7 @@ void VulkanInterface::UpdatePushConstants(void)
 
 TopoClass getTopologyClass(VkPrimitiveTopology topology)
 {
-  switch(topology)
+  switch (topology)
   {
   case 0:
     return Point;
@@ -1116,13 +1120,15 @@ TopoClass getTopologyClass(VkPrimitiveTopology topology)
   case 4:
   case 5:
     return Triangle;
+  default:
+    return Triangle;
   }
 }
 
 void VulkanInterface::SetTopology(VkPrimitiveTopology topology)
 {
   TopoClass clas = getTopologyClass(topology);
-  
+
   if (clas != activeTopology)
   {
     vkCmdBindPipeline(primaryBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, ActivePipelines[clas]);
