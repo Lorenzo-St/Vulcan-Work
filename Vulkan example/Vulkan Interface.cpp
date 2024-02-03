@@ -21,7 +21,7 @@ namespace pass
 
 
 
-VulkanInterface::VulkanInterface(void)
+VulkanInterface::VulkanInterface(void) : lightInformation({ 0,0,0,1 }, 100000)
 {
   _swapChain = 0;
   allocator = 0;
@@ -335,7 +335,7 @@ void VulkanInterface::CreateRenderPass(void)
 
 VkSurfaceFormatKHR VulkanInterface::SelectValidFormat(std::vector<VkSurfaceFormatKHR>& formats)
 {
-  for (auto format : formats)
+  for (auto &format : formats)
   {
     if (format.format == VK_FORMAT_B8G8R8A8_SRGB && format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
       return format;
@@ -647,7 +647,7 @@ VkDescriptorPool VulkanInterface::CreateDescriptorPool(VkDescriptorSetLayout* se
 {
   VkDescriptorPoolSize psize{};
 
-  psize.descriptorCount = 1;
+  psize.descriptorCount = 2;
   psize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 
   VkDescriptorPool descriptorPool;
@@ -663,10 +663,13 @@ VkDescriptorPool VulkanInterface::CreateDescriptorPool(VkDescriptorSetLayout* se
 
 VkPipelineLayout VulkanInterface::CreatePipelineLayout(VkDescriptorSetLayout* setLayout)
 {
-  std::array<VkPushConstantRange, 1> constantRanges{};
-  constantRanges[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+  std::array<VkPushConstantRange, 2> constantRanges{};
+  constantRanges[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
   constantRanges[0].size = sizeof(uniformBuffer);
   constantRanges[0].offset = 0;
+  constantRanges[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_VERTEX_BIT;
+  constantRanges[1].size = sizeof(lightInfo);
+  constantRanges[1].offset = sizeof(uniformBuffer);
 
   VkPipelineLayout layout;
   VkPipelineLayoutCreateInfo layoutCreate{};
@@ -786,7 +789,7 @@ void VulkanInterface::BeginRenderPass()
   };
 
   VkClearValue clear[2]{};
-  clear[0].color = { 0, 0.5, 0, 1 };
+  clear[0].color = { 0, 0, 0, 1 };
   clear[1].depthStencil = { 1, 0 };
   VkRenderPassBeginInfo beginInfo{};
 
@@ -1103,7 +1106,8 @@ void VulkanInterface::UpdatePushConstants(void)
   constantBuffer.worldProjection = glm::perspective(activeCamera.fov, windowSize.x / windowSize.y, 1.0f, 1500.0f);
   //constantBuffer.viewProjection  = glm::transpose(constantBuffer.viewProjection);
   //constantBuffer.worldProjection = glm::transpose(constantBuffer.worldProjection);
-  vkCmdPushConstants(primaryBuffer, pipelayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(uniformBuffer), &constantBuffer);
+  vkCmdPushConstants(primaryBuffer, pipelayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(uniformBuffer), &constantBuffer);
+  vkCmdPushConstants(primaryBuffer, pipelayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(uniformBuffer), sizeof(lightInfo), &lightInformation);
 
 }
 

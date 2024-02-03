@@ -21,7 +21,16 @@ VertexInfo Vertex::GetInfo()
   ColorDescription.location = 1;
   ColorDescription.format = VK_FORMAT_R32G32B32A32_SFLOAT;
   ColorDescription.offset = offsetof(Vertex, color);
+
+  VkVertexInputAttributeDescription NormalDescription{};
+  NormalDescription.binding = 0;
+  NormalDescription.location = 2;
+  NormalDescription.format = VK_FORMAT_R32G32B32A32_SFLOAT;
+  NormalDescription.offset = offsetof(Vertex, normal);
+
   info.attributes.push_back(PositionDescription);
   info.attributes.push_back(ColorDescription);
+  info.attributes.push_back(NormalDescription);
+
   return info;
 }

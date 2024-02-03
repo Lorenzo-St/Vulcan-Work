@@ -21,7 +21,16 @@ struct uniformBuffer
   glm::mat4x4 viewProjection;
   glm::mat4x4 objectPosition;
 };
-
+constexpr int padSize = 1;
+struct lightInfo 
+{
+  lightInfo(glm::vec4 pos, float str) : lightPosition(pos), lightStrength(str), light_factor(1), ambient_factor(0), pad() { for (int i = 0; i < padSize; ++i)pad[i] = 0; }
+  glm::vec4 lightPosition;
+  float lightStrength;
+  float light_factor;
+  float ambient_factor;
+  float pad[padSize];
+};
 
 enum TopoClass
 {
@@ -54,6 +63,16 @@ public:
 
   void SetActiveCamera(Camera c);
 
+  void SetLightPosition(glm::vec4 pos)
+  {
+    lightInformation.lightPosition = pos * glm::vec4(-1, -1, 1, 1);
+  }
+  void SetLightStrength(float f) 
+  {
+    lightInformation.lightStrength = f;
+  }
+
+
   /*
    * Must be called before any render commands are submitted.
    * Tells the interface to begin accepting render commands
@@ -75,9 +94,9 @@ public:
     localPos.x *= -1, localPos.y *= -1;
     constantBuffer.objectPosition  = glm::identity<glm::mat4x4>();
     constantBuffer.objectPosition = glm::translate(constantBuffer.objectPosition, localPos);
-    constantBuffer.objectPosition = glm::rotate(constantBuffer.objectPosition, local.x, { 1,0,0 });
-    constantBuffer.objectPosition = glm::rotate(constantBuffer.objectPosition, local.y, { 0,1,0 });
-    constantBuffer.objectPosition = glm::rotate(constantBuffer.objectPosition, local.z, { 0,0,1 });
+    constantBuffer.objectPosition = glm::rotate(constantBuffer.objectPosition, local.x, { 0,0,1 });
+    constantBuffer.objectPosition = glm::rotate(constantBuffer.objectPosition, local.y, { 1,0,0 });
+    constantBuffer.objectPosition = glm::rotate(constantBuffer.objectPosition, local.z, { 0,1,0 });
     constantBuffer.objectPosition = glm::scale(constantBuffer.objectPosition, scale);
   }
 
@@ -91,7 +110,7 @@ private:
   glm::vec2 windowSize;
   Camera activeCamera;
   uniformBuffer constantBuffer;
-
+  lightInfo lightInformation;
   VkDevice globalDevice;
   VkPhysicalDevice physicalDevice;
   VkFence fence;
